@@ -48,6 +48,37 @@ def extract_text_from_pdf(file_path : str) -> str:
         return full_text
 
 
+# ------------ Extract text from string input by user ------------------
+def extract_text_from_string(raw_text : str) -> str:
+
+    # CHECK text validity
+    if not raw_text or not raw_text.strip():
+        raise ValueError("No text provided. Enter valid text")
+
+    return raw_text.strip()
+
+
+# -------------- Main funtion ----------------------
+
+if __name__ == "__main__":
+
+    import sys # gives python access to command line arguments and more intepreter functions
+
+    # CHECK if PDF path was provided
+
+    if len(sys.argv) < 2:
+        print("Usage: python pdf_reader.py path/to/resume.pdf")
+        sys.exit(1)
+
+    # get PDF path
+    path = sys.argv[1]
+    text = extract_text_from_pdf(path)
+
+    print(f"Text Extracted {len(text)} characters from {path}")
+    print("─" * 40)
+    print(text:[500])
+
+
 
 
 
