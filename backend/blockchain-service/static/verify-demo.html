@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!--
+  Demo-only verification page. The real frontend team should replace this
+  with a proper page at /verify/:credentialId that calls
+  POST /api/blockchain/credentials/{id}/verify. This exists so the QR flow
+  is demonstrable before the frontend is built.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Credential Verification (Demo)</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 20px; }
+  #status { font-size: 1.4rem; font-weight: bold; margin: 16px 0; }
+  .VERIFIED { color: #16a34a; }
+  .REVOKED { color: #d97706; }
+  .INVALID { color: #dc2626; }
+  .NOT_FOUND { color: #6b7280; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+  dt { font-weight: 600; color: #374151; }
+</style>
+</head>
+<body>
+  <h1>Credential Verification</h1>
+  <div id="status">Checking...</div>
+  <dl id="details"></dl>
+
+  <script>
+    const API_BASE = "http://localhost:8000"; // adjust to deployed backend URL
+    const pathParts = window.location.pathname.split("/");
+    const credentialId = pathParts[pathParts.length - 1];
+
+    fetch(`${API_BASE}/api/blockchain/credentials/${credentialId}/verify`, { method: "POST" })
+      .then((r) => r.json())
+      .then((data) => {
+        const statusEl = document.getElementById("status");
+        statusEl.textContent = data.status;
+        statusEl.className = data.status;
+
+        const dl = document.getElementById("details");
+        dl.innerHTML = `
+          <dt>Credential ID</dt><dd>${data.credential_id}</dd>
+          ${data.issuer ? `<dt>Issuer address</dt><dd>${data.issuer}</dd>` : ""}
+          ${data.issued_at ? `<dt>Issued</dt><dd>${data.issued_at}</dd>` : ""}
+        `;
+      })
+      .catch(() => {
+        document.getElementById("status").textContent = "Unable to reach verification service";
+      });
+  </script>
+</body>
+</html>
