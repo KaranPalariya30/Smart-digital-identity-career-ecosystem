@@ -4,4 +4,4 @@ cache/
 .env
 coverage/
 coverage.json
-deployments/local-deployment.json
+deployments/
