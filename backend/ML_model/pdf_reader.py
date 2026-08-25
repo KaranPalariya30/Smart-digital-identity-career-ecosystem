@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     print(f"Text Extracted {len(text)} characters from {path}")
     print("─" * 40)
-    print(text:[500])
+    print(text[:500])
 
 
 
