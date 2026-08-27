@@ -130,6 +130,7 @@ def get_unique_tokens(tokens: list[str]) -> set[str]:
     #no dublicates
     return set(tokens)
 
+# -------- STEP % : count frequency of tokens
 
 
 
