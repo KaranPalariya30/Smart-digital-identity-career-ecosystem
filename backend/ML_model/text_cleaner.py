@@ -84,6 +84,54 @@ def clean_text(text: str) -> list[str]:
     return tokens
 
 
+# ------ STEP 3 : Named Entity Recoginization
+def extract_named_entities(text:str) -> dict[str,list[str]]:
+
+    #giving text to spaCy model
+    doc = _NLP(text) 
+
+    #result dictionary
+    entities : dict[str,list[str]] = {
+        "persons"    : [],
+        "orgs"       : [],
+        "dates"      : [],
+        "products"   : []
+    }
+
+    #dedublication
+    seen = set()
+
+    for ent in doc.ents:
+
+        val = ent.text.strip()
+        key = val.lower()
+
+        #check dublicates
+        if key in seen:
+            continue
+        else:
+            seen.add(key)
+
+        if ent.label_ == "PERSON":
+            entities["persons"].append(val)
+        elif ent.label_ == "ORG":
+            entities["orgs"].append(val)
+        elif ent.label_ == "DATE":
+            entities["dates"].append(val)
+        elif ent.label_ == "PRODUCT":
+            entities["products"].append(val)
+
+
+    return entities
+
+
+# -------- STEP 4 : return unique tokens
+def get_unique_tokens(tokens: list[str]) -> set[str]:
+    #no dublicates
+    return set(tokens)
+
+
+
 
 
 
