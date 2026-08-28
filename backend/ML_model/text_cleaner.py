@@ -130,9 +130,15 @@ def get_unique_tokens(tokens: list[str]) -> set[str]:
     #no dublicates
     return set(tokens)
 
-# -------- STEP % : count frequency of tokens
+# -------- STEP 5 : count frequency of word appearing
+def get_word_frequency(tokens: list[str]) -> dict[str,int]:
+    freq : dict[str,int] = {}
+    for token in tokens:
+        freq[token] = freq.get(token,0) + 1
+    return freq
 
 
+# -------- STEP 6 : 
 
 
 
