@@ -138,13 +138,16 @@ def get_word_frequency(tokens: list[str]) -> dict[str,int]:
     return freq
 
 
-# -------- STEP 6 : 
+# -------- STEP 6 : extract bigrams : two consecutive words from list of tokens 
+def extract_bigrams(tokens : list[str]) -> list[str]:
+
+    #list for storing bigrams 
+    bigrams = []
+
+    for i in range(len(tokens-1)):
+        bigrams.append(tokens[i] + "_" + tokens[i+1])
+
+    return bigrams
 
 
-
-
-
-
-
-    
-
+# -------- STEP 7 : T
