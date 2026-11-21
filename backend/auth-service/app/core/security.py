@@ -70,3 +70,27 @@ def decode_email_verification_token(token: str) -> dict:
         raise JWTError("Invalid token purpose")
 
     return payload
+
+def create_password_reset_token(user_id: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+    token_data = {
+        "sub": str(user_id),
+        "purpose": "password_reset",
+        "exp": expire
+    }
+
+    return jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_password_reset_token(token: str) -> dict:
+    payload = jwt.decode(
+        token,
+        SECRET_KEY,
+        algorithms=[ALGORITHM]
+    )
+
+    if payload.get("purpose") != "password_reset":
+        raise JWTError("Invalid token purpose")
+
+    return payload

@@ -13,6 +13,8 @@ from app.schemas.auth import (
     TokenResponse,
     RegistrationResponse,
     EmailVerificationRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
 )
 from app.core.security import (
     hash_password,
@@ -21,6 +23,8 @@ from app.core.security import (
     decode_access_token,
     create_email_verification_token,
     decode_email_verification_token,
+    create_password_reset_token,
+    decode_password_reset_token,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -222,3 +226,68 @@ def verify_email(
     db.commit()
 
     return {"message": "Email verified successfully"}
+# 7. FORGOT PASSWORD
+@router.post("/forgot-password")
+def forgot_password(
+    request_data: ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(
+        User.email == request_data.email
+    ).first()
+
+    response_data = {
+        "message": "If the account exists, password reset instructions have been generated."
+    }
+
+    if not user:
+        return response_data
+
+    reset_token = create_password_reset_token(user.id)
+
+    # Development only: expose token for local Swagger testing
+    if EMAIL_VERIFICATION_DEV_MODE:
+        response_data["reset_token"] = reset_token
+
+    return response_data
+# 8. RESET PASSWORD
+@router.post("/reset-password")
+def reset_password(
+    request_data: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    # Validate password length
+    if len(request_data.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long"
+        )
+
+    # Validate reset token
+    try:
+        payload = decode_password_reset_token(request_data.token)
+        user_id = int(payload.get("sub"))
+
+    except (JWTError, ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token"
+        )
+
+    # Find user
+    user = db.query(User).filter(
+        User.id == user_id
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Hash and update new password
+    user.password_hash = hash_password(request_data.new_password)
+
+    db.commit()
+
+    return {"message": "Password reset successfully"}

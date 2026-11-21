@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Literal
 
+
 class UserRegister(BaseModel):
     name: str
     email: EmailStr
@@ -26,6 +27,8 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
 class EmailVerificationRequest(BaseModel):
     token: str
 
@@ -37,3 +40,12 @@ class RegistrationResponse(BaseModel):
     role: str
     is_verified: bool
     verification_token: str | None = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
