@@ -26,3 +26,14 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+class EmailVerificationRequest(BaseModel):
+    token: str
+
+
+class RegistrationResponse(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    role: str
+    is_verified: bool
+    verification_token: str | None = None

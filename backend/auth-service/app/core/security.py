@@ -51,3 +51,22 @@ def decode_access_token(token: str) -> dict:
         SECRET_KEY,
         algorithms=[ALGORITHM]
     )
+
+def create_email_verification_token(user_id: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+    token_data = {
+        "sub": str(user_id),
+        "purpose": "email_verification",
+        "exp": expire
+    }
+
+    return jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+
+def decode_email_verification_token(token: str) -> dict:
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+    if payload.get("purpose") != "email_verification":
+        raise JWTError("Invalid token purpose")
+
+    return payload
