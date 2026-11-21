@@ -27,7 +27,13 @@ class CredentialDetailResponse(BaseModel):
 
 class VerifyResult(BaseModel):
     credential_id: str
-    status: Literal["VERIFIED", "REVOKED", "INVALID", "NOT_FOUND"]
+    status: Literal[
+        "VERIFIED",
+        "REVOKED",
+        "INVALID",
+        "NOT_FOUND",
+        "DEPLOYMENT_MISMATCH"
+    ]
     issuer: Optional[str] = None
     issued_at: Optional[datetime] = None
 

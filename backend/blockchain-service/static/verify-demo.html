@@ -1,52 +1,112 @@
-<!DOCTYPE html>
-<!--
-  Demo-only verification page. The real frontend team should replace this
-  with a proper page at /verify/:credentialId that calls
-  POST /api/blockchain/credentials/{id}/verify. This exists so the QR flow
-  is demonstrable before the frontend is built.
--->
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Credential Verification (Demo)</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credential Verification</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 20px; }
-  #status { font-size: 1.4rem; font-weight: bold; margin: 16px 0; }
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 600px;
+    margin: 70px auto;
+    padding: 24px;
+    color: #1f2937;
+    background: #f9fafb;
+  }
+  .container {
+    background: white;
+    padding: 32px;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  h1 { margin-top: 0; }
+  #status {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 24px 0;
+  }
   .VERIFIED { color: #16a34a; }
   .REVOKED { color: #d97706; }
-  .INVALID { color: #dc2626; }
+  .INVALID, .DEPLOYMENT_MISMATCH { color: #dc2626; }
   .NOT_FOUND { color: #6b7280; }
-  dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
-  dt { font-weight: 600; color: #374151; }
+  .ERROR { color: #dc2626; }
+  dl {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 12px;
+    overflow-wrap: anywhere;
+  }
+  dt { font-weight: 600; }
+  dd { margin: 0; }
+  .note { color: #6b7280; font-size: 0.9rem; margin-top: 28px; }
 </style>
 </head>
 <body>
+<div class="container">
   <h1>Credential Verification</h1>
+  <p>Checking the authenticity of this credential against the blockchain...</p>
   <div id="status">Checking...</div>
   <dl id="details"></dl>
+  <p class="note">Smart Digital Identity and Career Ecosystem</p>
+</div>
 
-  <script>
-    const API_BASE = "http://localhost:8000"; // adjust to deployed backend URL
-    const pathParts = window.location.pathname.split("/");
-    const credentialId = pathParts[pathParts.length - 1];
+<script>
+  const API_BASE = window.location.origin;
+  const credentialId = decodeURIComponent(
+    window.location.pathname.split("/").filter(Boolean).pop() || ""
+  );
 
-    fetch(`${API_BASE}/api/blockchain/credentials/${credentialId}/verify`, { method: "POST" })
-      .then((r) => r.json())
-      .then((data) => {
-        const statusEl = document.getElementById("status");
-        statusEl.textContent = data.status;
-        statusEl.className = data.status;
+  const statusEl = document.getElementById("status");
+  const detailsEl = document.getElementById("details");
 
-        const dl = document.getElementById("details");
-        dl.innerHTML = `
-          <dt>Credential ID</dt><dd>${data.credential_id}</dd>
-          ${data.issuer ? `<dt>Issuer address</dt><dd>${data.issuer}</dd>` : ""}
-          ${data.issued_at ? `<dt>Issued</dt><dd>${data.issued_at}</dd>` : ""}
-        `;
-      })
-      .catch(() => {
-        document.getElementById("status").textContent = "Unable to reach verification service";
-      });
-  </script>
+  function showDetail(label, value) {
+    if (!value) return;
+
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+
+    const dd = document.createElement("dd");
+    dd.textContent = value;
+
+    detailsEl.append(dt, dd);
+  }
+
+  async function verifyCredential() {
+    try {
+      if (!credentialId || credentialId === "verify") {
+        throw new Error("Invalid credential ID in verification URL");
+      }
+
+      const response = await fetch(
+        `${API_BASE}/api/blockchain/credentials/${encodeURIComponent(credentialId)}/verify`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Verification API returned HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      statusEl.textContent = data.status;
+      statusEl.className = data.status;
+
+      showDetail("Credential ID", data.credential_id);
+      showDetail("Issuer address", data.issuer);
+      showDetail("Issued on", data.issued_at);
+    } catch (error) {
+      statusEl.textContent = "Unable to verify credential";
+      statusEl.className = "ERROR";
+
+      const message = document.createElement("p");
+      message.textContent = error.message;
+      detailsEl.appendChild(message);
+
+      console.error("Verification error:", error);
+    }
+  }
+
+  verifyCredential();
+</script>
 </body>
 </html>

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     contract_address: str = ""
     deployment_artifact_path: str = "../../blockchain/deployments/localhost-deployment.json"
     issuer_private_key: str = ""
+    service_api_token: str = ""
     database_url: str = "postgresql://postgres:postgres@localhost:5432/career_ecosystem"
     frontend_verify_base_url: str = "http://localhost:5173/verify"
 

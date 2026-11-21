@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, timezone
+from app.auth import require_service_token
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.blockchain_client import BlockchainClient, get_blockchain_client
@@ -24,7 +25,12 @@ from app.schemas import (
 router = APIRouter(prefix="/api/blockchain/credentials", tags=["blockchain-credentials"])
 
 
-@router.post("", response_model=CredentialRegisterResponse, status_code=201)
+@router.post(
+    "",
+    response_model=CredentialRegisterResponse,
+    status_code=201,
+    dependencies=[Depends(require_service_token)],
+)
 async def register_credential(
     file: UploadFile,
     user_id: uuid.UUID,
@@ -98,54 +104,76 @@ def get_credential(credential_id: str, db: Session = Depends(get_db)):
     )
 
 
+
 @router.post("/{credential_id}/verify", response_model=VerifyResult)
 async def verify_credential(
     credential_id: str,
-    file: UploadFile | None = None,
+    file: UploadFile | str | None = File(default=None),
     db: Session = Depends(get_db),
     client: BlockchainClient = Depends(get_blockchain_client),
 ):
-    """Public verification endpoint — no authentication required.
+    """Public verification endpoint."""
 
-    If a file is supplied, its hash is recomputed and checked against the
-    blockchain record (proves the specific document wasn't tampered with).
-    If no file is supplied, verification falls back to the hash already on
-    record in the database (useful for the QR-scan flow, where the verifier
-    doesn't have the original document).
-    """
     row = db.get(Credential, credential_id)
-    if not row:
-        return VerifyResult(credential_id=credential_id, status="NOT_FOUND")
 
-    if file is not None:
+    if not row:
+        return VerifyResult(
+            credential_id=credential_id,
+            status="NOT_FOUND"
+        )
+
+    # Check whether the credential belongs to the current deployment.
+    current_contract = client.contract.address
+
+    if row.contract_address.lower() != current_contract.lower():
+        return VerifyResult(
+            credential_id=credential_id,
+            status="DEPLOYMENT_MISMATCH"
+        )
+
+    # Calculate the uploaded document hash, if provided.
+    if file is not None and not isinstance(file, str):
         contents = await file.read()
         check_hash = sha256_bytes(contents)
     else:
         check_hash = row.document_hash
 
+    # Fetch the credential from the blockchain.
     on_chain = client.get_credential(credential_id)
-    if on_chain is None:
-        return VerifyResult(credential_id=credential_id, status="NOT_FOUND")
 
-    if on_chain["credential_hash"] != check_hash:
-        return VerifyResult(credential_id=credential_id, status="INVALID")
+    if on_chain is None:
+        return VerifyResult(
+            credential_id=credential_id,
+            status="NOT_FOUND"
+        )
+
+    if on_chain["credential_hash"].lower() != check_hash.lower():
+        return VerifyResult(
+            credential_id=credential_id,
+            status="INVALID"
+        )
 
     if on_chain["revoked"]:
         return VerifyResult(
             credential_id=credential_id,
             status="REVOKED",
-            issuer=on_chain["issuer"],
+            issuer=on_chain["issuer"]
         )
 
     return VerifyResult(
         credential_id=credential_id,
         status="VERIFIED",
         issuer=on_chain["issuer"],
-        issued_at=row.issued_at,
+        issued_at=row.issued_at
     )
 
 
-@router.post("/{credential_id}/revoke", response_model=RevokeResponse)
+
+@router.post(
+    "/{credential_id}/revoke",
+    response_model=RevokeResponse,
+    dependencies=[Depends(require_service_token)],
+)
 def revoke_credential(
     credential_id: str,
     db: Session = Depends(get_db),
