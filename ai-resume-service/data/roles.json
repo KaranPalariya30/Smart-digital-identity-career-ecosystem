@@ -1,0 +1,56 @@
+{
+  "backend_python": {
+    "title": "Backend Engineer (Python)",
+    "description": "Builds and maintains server-side APIs and services in Python, working with databases, caching and deployment pipelines.",
+    "required": ["python", "rest api", "sql", "git", "docker"],
+    "preferred": ["fastapi", "flask", "django", "postgresql", "redis", "ci/cd", "microservices", "aws", "data structures", "system design", "pytest"]
+  },
+  "backend_java": {
+    "title": "Backend Engineer (Java)",
+    "description": "Develops enterprise back-end services in Java and Spring Boot with relational databases and message queues.",
+    "required": ["java", "spring boot", "rest api", "sql", "git", "oop"],
+    "preferred": ["mysql", "postgresql", "microservices", "docker", "kafka", "rabbitmq", "ci/cd", "design patterns", "data structures"]
+  },
+  "frontend": {
+    "title": "Frontend Engineer",
+    "description": "Builds responsive, accessible user interfaces with modern JavaScript frameworks and integrates them with REST APIs.",
+    "required": ["javascript", "html", "css", "react", "git", "rest api"],
+    "preferred": ["typescript", "next.js", "redux", "tailwind css", "webpack", "jest", "unit testing"]
+  },
+  "fullstack": {
+    "title": "Full Stack Engineer",
+    "description": "Owns features end to end: a modern frontend, a backend API and the database underneath, plus basic deployment.",
+    "required": ["javascript", "react", "node.js", "rest api", "sql", "git"],
+    "preferred": ["typescript", "python", "postgresql", "mongodb", "docker", "ci/cd", "aws", "fastapi", "express"]
+  },
+  "data_scientist": {
+    "title": "Data Scientist",
+    "description": "Analyses data, builds statistical and machine learning models and communicates insights to the business.",
+    "required": ["python", "pandas", "numpy", "machine learning", "sql", "scikit-learn"],
+    "preferred": ["matplotlib", "data science", "tableau", "power bi", "deep learning", "nlp", "git", "big data", "spark"]
+  },
+  "ml_engineer": {
+    "title": "Machine Learning Engineer",
+    "description": "Trains, evaluates and deploys machine learning models into production systems.",
+    "required": ["python", "machine learning", "deep learning", "pytorch", "git", "docker"],
+    "preferred": ["tensorflow", "scikit-learn", "numpy", "pandas", "nlp", "computer vision", "kubernetes", "aws", "ci/cd", "airflow", "fastapi"]
+  },
+  "genai_engineer": {
+    "title": "Generative AI Engineer",
+    "description": "Builds applications on large language models: retrieval augmented generation, prompt pipelines and agent workflows.",
+    "required": ["python", "generative ai", "nlp", "rag", "rest api", "git"],
+    "preferred": ["langchain", "hugging face", "fastapi", "pytorch", "docker", "machine learning", "deep learning", "aws", "postgresql"]
+  },
+  "devops": {
+    "title": "DevOps Engineer",
+    "description": "Automates build, test and deployment pipelines and runs reliable cloud infrastructure.",
+    "required": ["linux", "docker", "kubernetes", "ci/cd", "git", "aws"],
+    "preferred": ["terraform", "ansible", "jenkins", "github actions", "prometheus", "grafana", "bash", "python", "nginx", "helm"]
+  },
+  "blockchain_developer": {
+    "title": "Blockchain Developer",
+    "description": "Designs and implements smart contracts and decentralised applications, including credential verification systems.",
+    "required": ["blockchain", "solidity", "smart contracts", "javascript", "git"],
+    "preferred": ["node.js", "react", "typescript", "python", "rest api", "data structures", "algorithms", "docker"]
+  }
+}

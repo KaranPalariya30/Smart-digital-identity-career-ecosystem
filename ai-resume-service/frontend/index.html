@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resume AI - demo frontend</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#6a7280; --line:#e3e6eb;
+          --accent:#2f6fed; --good:#1f8a4c; --goodbg:#e4f5ea; --warn:#a15c00; --warnbg:#fff1d6;
+          --info:#4b5563; --infobg:#eceff3; --bad:#b42318; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaee; --muted:#9aa3b2; --line:#2e333c;
+            --accent:#6c9bff; --good:#5bd08a; --goodbg:#18331f; --warn:#f0b35c; --warnbg:#3a2a10;
+            --info:#c0c7d3; --infobg:#2a2e36; --bad:#ff8a80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 16px; margin-bottom: 14px; }
+  label { display:block; font-weight:600; margin: 12px 0 4px; }
+  label:first-child { margin-top: 0; }
+  textarea, select, input[type=text] { width:100%; padding:9px 10px; border:1px solid var(--line);
+          border-radius:8px; background: var(--bg); color: var(--text); font: inherit; }
+  textarea { min-height: 120px; resize: vertical; }
+  .row { display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+  .row label { display:inline-flex; gap:6px; align-items:center; font-weight:500; margin:0; }
+  button { background: var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 18px;
+           font: inherit; font-weight:600; cursor:pointer; }
+  button.ghost { background: transparent; color: var(--accent); border:1px solid var(--accent);
+           padding:5px 10px; font-weight:500; }
+  button:disabled { opacity:.6; cursor:wait; }
+  .status { margin-left: 12px; color: var(--muted); }
+  .status.err { color: var(--bad); }
+  .score { display:flex; align-items:baseline; gap:12px; }
+  .big { font-size: 48px; font-weight: 700; line-height:1; }
+  .grade { font-size: 22px; font-weight:600; color: var(--muted); }
+  .bar { height:8px; background: var(--line); border-radius:6px; overflow:hidden; margin: 6px 0 2px; }
+  .bar > span { display:block; height:100%; background: var(--accent); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { padding:3px 10px; border-radius:999px; font-size:13px; background:var(--infobg); color:var(--info); }
+  .chip.good { background:var(--goodbg); color:var(--good); }
+  .chip.warn { background:var(--warnbg); color:var(--warn); }
+  ol, ul { margin: 6px 0 0; padding-left: 20px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .role { border-top:1px solid var(--line); padding: 10px 0; }
+  .role:first-child { border-top:0; }
+  .role-head { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Resume AI - demo frontend</h1>
+  <p class="sub">A small test page for the Resume AI service. API address:
+     <input type="text" id="api" style="max-width:280px; display:inline-block"></p>
+
+  <section class="card">
+    <label for="file">Resume PDF</label>
+    <input type="file" id="file" accept="application/pdf">
+    <label for="resume">...or paste the resume text</label>
+    <textarea id="resume" placeholder="Python developer. FastAPI, PostgreSQL, Docker, Git ..."></textarea>
+
+    <label>What do you want?</label>
+    <div class="row">
+      <label><input type="radio" name="mode" value="role" checked> Analyze for a role</label>
+      <label><input type="radio" name="mode" value="jd"> Analyze against a job description</label>
+      <label><input type="radio" name="mode" value="recommend"> Recommend roles for me</label>
+    </div>
+
+    <div id="roleBox"><label for="role">Target role</label><select id="role"></select></div>
+    <div id="jdBox" hidden><label for="jd">Job description (at least 50 characters)</label>
+      <textarea id="jd"></textarea></div>
+
+    <p style="margin:16px 0 0"><button id="go">Analyze</button><span id="status" class="status"></span></p>
+  </section>
+
+  <div id="out"></div>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+function chips(items, cls) {
+  const wrap = el("div", "chips");
+  items.forEach((t) => wrap.appendChild(el("span", "chip " + (cls || ""), t)));
+  return wrap;
+}
+function card(title) {
+  const c = el("section", "card");
+  if (title) c.appendChild(el("h2", "", title));
+  return c;
+}
+function list(tag, items) {
+  const l = el(tag);
+  items.forEach((t) => l.appendChild(el("li", "", t)));
+  return l;
+}
+
+const qs = new URLSearchParams(location.search).get("api");
+$("api").value = qs || (location.protocol.startsWith("http") ? location.origin : "http://127.0.0.1:8000");
+const base = () => $("api").value.trim().replace(/\/+$/, "");
+const mode = () => document.querySelector('input[name="mode"]:checked').value;
+
+function setStatus(msg, isErr) {
+  $("status").textContent = msg || "";
+  $("status").className = "status" + (isErr ? " err" : "");
+}
+
+function updateBoxes() {
+  $("roleBox").hidden = mode() !== "role";
+  $("jdBox").hidden = mode() !== "jd";
+  $("go").textContent = mode() === "recommend" ? "Recommend roles" : "Analyze";
+}
+document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener("change", updateBoxes));
+
+async function loadRoles() {
+  try {
+    const res = await fetch(base() + "/api/v1/roles");
+    const roles = await res.json();
+    const sel = $("role");
+    sel.textContent = "";
+    roles.forEach((r) => {
+      const o = el("option", "", r.title);
+      o.value = r.id;
+      sel.appendChild(o);
+    });
+    setStatus("");
+  } catch (e) {
+    setStatus("Cannot reach the API at " + base(), true);
+  }
+}
+$("api").addEventListener("change", loadRoles);
+
+function errMsg(data, res) {
+  if (data && data.error) return data.error;
+  if (data && typeof data.detail === "string") return data.detail;
+  if (data && data.detail) return JSON.stringify(data.detail);
+  return "Request failed (" + res.status + ")";
+}
+
+function renderAnalysis(r) {
+  const out = $("out");
+  out.textContent = "";
+
+  const s = card();
+  const top = el("div", "score");
+  top.appendChild(el("span", "big", String(r.score.overall)));
+  top.appendChild(el("span", "grade", "Grade " + r.score.grade));
+  s.appendChild(top);
+  const bar = el("div", "bar");
+  const fill = el("span");
+  fill.style.width = r.score.overall + "%";
+  bar.appendChild(fill);
+  s.appendChild(bar);
+  s.appendChild(el("p", "", r.score.summary));
+  s.appendChild(el("p", "muted",
+    "Skills " + Math.round(r.score.skill_score * 100) + "%  |  Text " +
+    Math.round(r.score.text_score * 100) + "%  |  " + r.meta.jd_source +
+    (r.meta.role_title ? " (" + r.meta.role_title + ")" : "") + "  |  " + r.meta.elapsed_ms + " ms"));
+  out.appendChild(s);
+
+  const sk = card("Skills");
+  sk.appendChild(el("p", "muted", "Matched (" + r.skills.matched.length + ")"));
+  sk.appendChild(chips(r.skills.matched.map((x) => x.name + (x.verified ? " (verified)" : "")), "good"));
+  sk.appendChild(el("p", "muted", "Missing (" + r.skills.missing.length + ")"));
+  sk.appendChild(chips(r.skills.missing.map((x) => x.name), "warn"));
+  if (r.skills.bonus.length) {
+    sk.appendChild(el("p", "muted", "Extra skills you have"));
+    sk.appendChild(chips(r.skills.bonus.map((x) => x.name)));
+  }
+  out.appendChild(sk);
+
+  if (r.learning_path.length) {
+    const lp = card("Learning path (do these in order)");
+    lp.appendChild(list("ol", r.learning_path.map((p) => p.skill + (p.kind === "prerequisite" ? "  - prerequisite" : ""))));
+    out.appendChild(lp);
+  }
+
+  const fb = card("Feedback");
+  fb.appendChild(el("p", "", r.feedback.verdict));
+  [["Strengths", r.feedback.strengths], ["To improve", r.feedback.improvements], ["Tips", r.feedback.tips]]
+    .forEach(([title, items]) => {
+      if (!items.length) return;
+      fb.appendChild(el("p", "muted", title));
+      fb.appendChild(list("ul", items));
+    });
+  out.appendChild(fb);
+}
+
+function renderRecommendations(r) {
+  const out = $("out");
+  out.textContent = "";
+  const d = card("Skills found in your resume");
+  d.appendChild(r.detected_skills.length ? chips(r.detected_skills, "good")
+                                         : el("p", "muted", "No known skills detected."));
+  out.appendChild(d);
+
+  const c = card("Best-fit roles");
+  r.recommendations.forEach((role) => {
+    const row = el("div", "role");
+    const head = el("div", "role-head");
+    head.appendChild(el("strong", "", role.title + " - " + role.fit_score + "% fit"));
+    const btn = el("button", "ghost", "Analyze this role");
+    btn.addEventListener("click", () => {
+      document.querySelector('input[name="mode"][value="role"]').checked = true;
+      updateBoxes();
+      $("role").value = role.role_id;
+      $("go").click();
+    });
+    head.appendChild(btn);
+    row.appendChild(head);
+    const bar = el("div", "bar");
+    const fill = el("span");
+    fill.style.width = role.fit_score + "%";
+    bar.appendChild(fill);
+    row.appendChild(bar);
+    if (role.missing_required.length) {
+      row.appendChild(el("p", "muted", "Missing required skills"));
+      row.appendChild(chips(role.missing_required, "warn"));
+    }
+    c.appendChild(row);
+  });
+  out.appendChild(c);
+}
+
+$("go").addEventListener("click", async () => {
+  const fd = new FormData();
+  const file = $("file").files[0];
+  const text = $("resume").value.trim();
+  if (!file && !text) { setStatus("Add a PDF or paste your resume text.", true); return; }
+  if (file) fd.append("resume_file", file);
+  if (text) fd.append("resume_text", text);
+
+  let url;
+  if (mode() === "recommend") {
+    url = "/api/v1/roles/recommend";
+    fd.append("top_k", "3");
+  } else {
+    url = "/api/v1/analyze";
+    fd.append("mode", mode());
+    if (mode() === "role") fd.append("target_role", $("role").value);
+    else fd.append("jd_text", $("jd").value);
+  }
+
+  $("go").disabled = true;
+  setStatus("Working...");
+  try {
+    const res = await fetch(base() + url, { method: "POST", body: fd });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) { setStatus(errMsg(data, res), true); return; }
+    setStatus("");
+    if (mode() === "recommend") renderRecommendations(data); else renderAnalysis(data);
+  } catch (e) {
+    setStatus("Cannot reach the API at " + base(), true);
+  } finally {
+    $("go").disabled = false;
+  }
+});
+
+updateBoxes();
+loadRoles();
+</script>
+</body>
+</html>

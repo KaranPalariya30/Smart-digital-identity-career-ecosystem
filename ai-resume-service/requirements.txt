@@ -1,0 +1,12 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+pydantic>=2.6
+pypdf>=4.0
+spacy>=3.7
+PyJWT>=2.8          # only used when AUTH_ENABLED=true
+# After installing spaCy:  python -m spacy download en_core_web_sm
+
+# dev / tests
+pytest>=8.0
+httpx>=0.27
