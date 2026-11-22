@@ -2,6 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import JWTError
+from app.core.config import (
+    EMAIL_VERIFICATION_DEV_MODE,
+    FRONTEND_VERIFY_BASE_URL,
+    FRONTEND_RESET_PASSWORD_BASE_URL
+)
+from app.core.email import send_auth_email
 
 from app.core.config import EMAIL_VERIFICATION_DEV_MODE
 from app.database.database import get_db
@@ -36,6 +42,7 @@ bearer_scheme = HTTPBearer()
 @router.post(
     "/register",
     response_model=RegistrationResponse,
+    response_model_exclude_none=True,
     status_code=status.HTTP_201_CREATED
 )
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
@@ -72,7 +79,31 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
 
     if EMAIL_VERIFICATION_DEV_MODE:
         response_data["verification_token"] = verification_token
+    else:
+        verification_link = (
+            f"{FRONTEND_VERIFY_BASE_URL}?token={verification_token}"
+        )
 
+        try:
+            send_auth_email(
+                to_email=new_user.email,
+                subject="Verify Your Email - Smart Digital Identity",
+                body=(
+                    f"Hello {new_user.name},\n\n"
+                    "Thank you for registering.\n"
+                    "Please verify your email using the link below:\n\n"
+                    f"{verification_link}\n\n"
+                    "If you did not create this account, ignore this email."
+                )
+            )
+        except Exception:
+            db.delete(new_user)
+            db.commit()
+
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Unable to send verification email. Please try again later."
+            )
     return response_data
 
 
@@ -104,7 +135,11 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
 
     access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role}
+        data={
+            "sub": str(user.id),
+            "role": user.role,
+            "token_version": user.token_version
+        }
     )
 
     return {
@@ -138,7 +173,11 @@ def get_current_user(
 
     user = db.query(User).filter(User.id == user_id).first()
 
-    if user is None or not user.is_active:
+    if (
+        user is None
+        or not user.is_active
+        or payload.get("token_version") != user.token_version
+    ):
         raise credentials_exception
 
     return user
@@ -226,7 +265,9 @@ def verify_email(
     db.commit()
 
     return {"message": "Email verified successfully"}
+
 # 7. FORGOT PASSWORD
+
 @router.post("/forgot-password")
 def forgot_password(
     request_data: ForgotPasswordRequest,
@@ -243,13 +284,39 @@ def forgot_password(
     if not user:
         return response_data
 
-    reset_token = create_password_reset_token(user.id)
+    reset_token = create_password_reset_token(
+        user.id,
+        user.token_version
+    )
 
-    # Development only: expose token for local Swagger testing
     if EMAIL_VERIFICATION_DEV_MODE:
         response_data["reset_token"] = reset_token
+    else:
+        reset_link = (
+            f"{FRONTEND_RESET_PASSWORD_BASE_URL}?token={reset_token}"
+        )
+
+        try:
+            send_auth_email(
+                to_email=user.email,
+                subject="Password Reset - Smart Digital Identity",
+                body=(
+                    f"Hello {user.name},\n\n"
+                    "We received a request to reset your password.\n"
+                    "Use the link below to reset it:\n\n"
+                    f"{reset_link}\n\n"
+                    "If you did not request this, please ignore this email."
+                )
+            )
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Unable to process the request right now. Please try again later."
+            )
 
     return response_data
+
+
 # 8. RESET PASSWORD
 @router.post("/reset-password")
 def reset_password(
@@ -275,18 +342,26 @@ def reset_password(
         )
 
     # Find user
+    # Find user
     user = db.query(User).filter(
         User.id == user_id
     ).first()
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token"
+        )
+
+    if payload.get("token_version") != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token"
         )
 
     # Hash and update new password
     user.password_hash = hash_password(request_data.new_password)
+    user.token_version += 1
 
     db.commit()
 

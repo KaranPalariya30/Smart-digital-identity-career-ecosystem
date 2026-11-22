@@ -15,7 +15,15 @@ pwd_context = CryptContext(
 )
 
 
+def validate_password_length(password: str) -> None:
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError(
+            "Password must not exceed 72 UTF-8 bytes."
+        )
+
+
 def hash_password(password: str) -> str:
+    validate_password_length(password)
     return pwd_context.hash(password)
 
 
@@ -23,10 +31,15 @@ def verify_password(
     plain_password: str,
     hashed_password: str
 ) -> bool:
-    return pwd_context.verify(
-        plain_password,
-        hashed_password
-    )
+    try:
+        validate_password_length(plain_password)
+
+        return pwd_context.verify(
+            plain_password,
+            hashed_password
+        )
+    except ValueError:
+        return False
 
 
 def create_access_token(data: dict) -> str:
@@ -36,7 +49,10 @@ def create_access_token(data: dict) -> str:
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    token_data.update({"exp": expire})
+    token_data.update({
+        "exp": expire,
+        "purpose": "access"
+    })
 
     return jwt.encode(
         token_data,
@@ -44,13 +60,17 @@ def create_access_token(data: dict) -> str:
         algorithm=ALGORITHM
     )
 
-
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(
+    payload = jwt.decode(
         token,
         SECRET_KEY,
         algorithms=[ALGORITHM]
     )
+
+    if payload.get("purpose") != "access":
+        raise JWTError("Invalid token purpose")
+
+    return payload
 
 def create_email_verification_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=30)
@@ -71,16 +91,24 @@ def decode_email_verification_token(token: str) -> dict:
 
     return payload
 
-def create_password_reset_token(user_id: int) -> str:
+def create_password_reset_token(
+    user_id: int,
+    token_version: int
+) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=15)
 
     token_data = {
         "sub": str(user_id),
         "purpose": "password_reset",
+        "token_version": token_version,
         "exp": expire
     }
 
-    return jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(
+        token_data,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
 
 
 def decode_password_reset_token(token: str) -> dict:
