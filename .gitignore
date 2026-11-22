@@ -18,3 +18,9 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+node_modules/
+data/idf_corpus.json
