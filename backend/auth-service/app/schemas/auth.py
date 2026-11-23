@@ -1,12 +1,23 @@
-from pydantic import BaseModel, EmailStr
+
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator
 from typing import Literal
+
+
+def validate_password_bytes(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("Password must not exceed 72 UTF-8 bytes.")
+    return password
 
 
 class UserRegister(BaseModel):
     name: str
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8)
     role: Literal["STUDENT"] = "STUDENT"
+
+    _validate_password = field_validator("password")(
+        validate_password_bytes
+    )
 
 
 class UserLogin(BaseModel):
@@ -25,8 +36,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     role: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EmailVerificationRequest(BaseModel):
@@ -48,4 +58,8 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(min_length=8)
+
+    _validate_password = field_validator("new_password")(
+        validate_password_bytes
+    )
