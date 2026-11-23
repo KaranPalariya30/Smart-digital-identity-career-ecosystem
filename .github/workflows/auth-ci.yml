@@ -1,0 +1,40 @@
+
+name: Authentication Service CI
+
+on:
+  pull_request:
+    branches:
+      - feature/authentication
+    paths:
+      - "backend/auth-service/**"
+      - ".github/workflows/auth-ci.yml"
+  push:
+    branches:
+      - fix/authentication-security
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend/auth-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run authentication tests
+        env:
+          SECRET_KEY: ci-test-secret-key-at-least-32-characters
+        run: python -m pytest tests/ -v
