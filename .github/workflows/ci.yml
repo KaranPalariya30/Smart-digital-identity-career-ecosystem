@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+jobs:
+  auth-service:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend/auth-service } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests/ -v
+        env:
+          SECRET_KEY: ci-test-secret-key-at-least-32-characters
+
+  blockchain-service:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend/blockchain-service } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest tests/ -v
+
+  resume-service:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend/resume-service } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: |
+          pip install -r requirements.txt
+          python -m spacy download en_core_web_sm
+      - run: python -m pytest -q
+
+  smart-contract:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: blockchain } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: npm ci
+      - run: npx hardhat test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: npm ci
+      - run: npm run build

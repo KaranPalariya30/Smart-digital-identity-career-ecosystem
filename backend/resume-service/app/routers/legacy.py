@@ -3,14 +3,15 @@ Backward-compatible POST /analyze with the OLD v1 response shape, so the
 existing frontend/app.js keeps working while the team migrates to /api/v1.
 Delete this file once the frontend uses the new contract.
 """
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 
+from ..auth import require_user
 from ..core.jd_resolver import resolve_jd
 from ..services.analyzer import analyze
 from .deps import read_resume
 
-router = APIRouter(tags=["legacy"])
+router = APIRouter(tags=["legacy"], dependencies=[Depends(require_user)])
 
 
 @router.post("/analyze", include_in_schema=True, summary="[legacy] v1-compatible analyze")

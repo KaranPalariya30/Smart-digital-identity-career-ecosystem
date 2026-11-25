@@ -28,13 +28,16 @@ class Settings:
     roles_path: Path = ROOT / "data" / "roles.json"
     idf_path: Path = ROOT / "data" / "idf_corpus.json"   # optional, see scripts/build_idf.py
 
-    # --- auth (shared JWT with the main backend) --------------------------
+    # --- auth (JWTs issued by backend/auth-service; JWT_SECRET == its SECRET_KEY) ----
     auth_enabled: bool = os.getenv("AUTH_ENABLED", "false").lower() == "true"
     jwt_secret: str = os.getenv("JWT_SECRET", "")
     jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
 
+    # Browser origins allowed to call this API (the React app in development).
     cors_origins: tuple = tuple(
-        o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()
+        o.strip()
+        for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+        if o.strip()
     )
 
 
