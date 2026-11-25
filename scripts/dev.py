@@ -6,7 +6,8 @@
     python scripts/dev.py check      # end-to-end rehearsal of the demo flow
     python scripts/dev.py stop       # stop anything left running
 
-Only the standard library is used, so run it with any Python 3.10+.
+Only the standard library is used. The services need Python 3.10 to 3.13 (3.12 recommended); if you
+run this with a newer Python it finds a supported one on the machine and uses that for the virtualenvs.
 """
 import argparse
 import json
@@ -49,6 +50,50 @@ DEMO_USERS = [
 # ----------------------------------------------------------------- helpers
 def say(msg: str) -> None:
     print(f"==> {msg}", flush=True)
+
+
+# The services pin exact package versions. Those have prebuilt wheels only for these Pythons; on a
+# newer one pip tries to compile them (Rust/C++ toolchains) and fails. Tested on 3.12.
+SUPPORTED = ((3, 10), (3, 13))
+
+
+def py_ok(version: tuple) -> bool:
+    return SUPPORTED[0] <= tuple(version[:2]) <= SUPPORTED[1]
+
+
+def find_python() -> str:
+    """The interpreter to build virtualenvs with: this one if supported, else a supported one on the machine."""
+    if py_ok(sys.version_info):
+        return sys.executable
+    for minor in (12, 13, 11, 10):
+        base = ["py", f"-3.{minor}"] if IS_WIN else [f"python3.{minor}"]
+        exe = shutil.which(base[0])
+        if not exe:
+            continue
+        try:
+            out = subprocess.run([exe, *base[1:], "-c", "import sys; print(sys.executable)"],
+                                 capture_output=True, text=True, timeout=20)
+        except Exception:
+            continue
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip().splitlines()[-1]
+    sys.exit(
+        f"\nPython {sys.version_info.major}.{sys.version_info.minor} is too new for the pinned packages: they have no "
+        "prebuilt wheels for it, so pip tries to compile them and fails.\n"
+        "Install Python 3.12 from https://www.python.org/downloads/ (keep the 'py launcher' option ticked), "
+        "then run this command again. It will find 3.12 by itself."
+    )
+
+
+def venv_version(service: Path) -> tuple | None:
+    cfg = service / ".venv" / "pyvenv.cfg"
+    if not cfg.exists():
+        return None
+    for line in cfg.read_text(encoding="utf-8", errors="ignore").splitlines():
+        key, _, value = line.partition("=")
+        if key.strip() in ("version", "version_info") and value.strip()[:1].isdigit():
+            return tuple(int(x) for x in value.strip().split(".")[:2] if x.isdigit())
+    return None
 
 
 def venv_python(service: Path) -> str:
@@ -159,8 +204,9 @@ def prepare_env() -> None:
 
 
 def cmd_setup(_args) -> None:
-    if sys.version_info < (3, 10):
-        sys.exit("Python 3.10 or newer is required.")
+    py = find_python()
+    if py != sys.executable:
+        say(f"this Python ({sys.version_info.major}.{sys.version_info.minor}) is not supported; using {py}")
     tool("node"); npm = tool("npm")
 
     # 1. env files
@@ -168,11 +214,15 @@ def cmd_setup(_args) -> None:
 
     # 2. one virtualenv per Python service (their pinned dependencies conflict)
     for svc in (AUTH, CHAIN_SVC, RESUME):
+        found = venv_version(svc)
+        if found and not py_ok(found):
+            say(f"{svc.name}: removing a virtualenv built with unsupported Python {found[0]}.{found[1]}")
+            shutil.rmtree(svc / ".venv", ignore_errors=True)
         if not Path(venv_python(svc)).exists():
             say(f"creating virtualenv for {svc.name}")
-            run([sys.executable, "-m", "venv", ".venv"], svc)
+            run([py, "-m", "venv", ".venv"], svc)
         say(f"installing {svc.name} requirements")
-        run([venv_python(svc), "-m", "pip", "install", "-q", "-r", "requirements.txt"], svc)
+        run([venv_python(svc), "-m", "pip", "install", "-q", "--disable-pip-version-check", "-r", "requirements.txt"], svc)
     say("downloading the spaCy model for the resume service")
     run([venv_python(RESUME), "-m", "spacy", "download", "en_core_web_sm"], RESUME)
 

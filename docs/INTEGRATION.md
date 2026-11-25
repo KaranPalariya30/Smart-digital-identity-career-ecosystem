@@ -62,7 +62,7 @@ python scripts/dev.py check     # rehearsal
 
 `start` runs a Hardhat node, deploys the contract (the first deploy downloads the Solidity compiler, so it needs internet), creates the demo accounts, starts the three services and the frontend, and prints the URLs. Logs are in `.run/*.log`.
 
-Each Python service has its own virtualenv because their pinned dependencies conflict.
+Each Python service has its own virtualenv because their pinned dependencies conflict. Use Python 3.10 to 3.13 (3.12 recommended). If your default Python is newer, `setup` looks for a supported one (on Windows via the `py` launcher) and rebuilds any virtualenv made with an unsupported version.
 
 ## 3. Demo script (about 5 minutes)
 

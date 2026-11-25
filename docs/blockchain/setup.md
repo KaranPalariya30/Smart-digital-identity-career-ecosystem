@@ -53,7 +53,7 @@ Edit `.env`:
 - `ISSUER_PRIVATE_KEY` — use the demo issuer key printed by
   `npm run seed:localhost` (Hardhat's well-known local test account #1).
   **Never use a real private key here.**
-- `DATABASE_URL` — defaults to a local SQLite file (`sqlite:///./credentials.db`), which needs no server. For a shared Postgres instance use `postgresql://user:pass@host:5432/db` and run the SQL in `database/migrations/` in order (001, then 002).
+- `DATABASE_URL` — defaults to a local SQLite file (`sqlite:///./credentials.db`), which needs no server. For a shared Postgres instance use `postgresql://user:pass@host:5432/db` and run the SQL in `database/migrations/` in order (001, then 002) and install the driver with `pip install -r requirements-postgres.txt`.
 - `DEPLOYMENT_ARTIFACT_PATH` — leave as default if you're running both
   services from the repo root layout described in `architecture.md`.
 

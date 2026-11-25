@@ -35,9 +35,11 @@ export const api = {
   credential: id => req(`${C}/${encodeURIComponent(id)}`),
   myCredentials: token => req(`${C}/mine`, { token }),
   verifyCredential: (id, file) => {
-    const form = new FormData()
-    if (file) form.append('file', file)
-    return req(`${C}/${encodeURIComponent(id)}/verify`, { method: 'POST', form })
+    const path = `${C}/${encodeURIComponent(id)}/verify`
+    // No file (opening a QR link): send no body at all. An empty multipart form is rejected by the server.
+    if (!file) return req(path, { method: 'POST' })
+    const form = new FormData(); form.append('file', file)
+    return req(path, { method: 'POST', form })
   },
   // Issue and revoke use the logged-in user's token; the blockchain service
   // allows it when the user's role is an issuer role (ADMIN by default).
