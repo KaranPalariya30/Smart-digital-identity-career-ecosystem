@@ -12,12 +12,12 @@ A student's credentials are sealed on a blockchain, anyone can verify them, and 
 
 ## Quick start
 
-Needs Python 3.10+ and Node.js 18+.
+Needs Python 3.10 to 3.13 (3.12 recommended; newer versions lack prebuilt wheels for the pinned packages) and Node.js 18+.
 
 ```bash
 python scripts/dev.py setup     # once: virtualenvs, packages, .env files
 python scripts/dev.py start     # local chain + contract + 3 services + frontend
-python scripts/dev.py check     # rehearse the full demo flow (20 checks)
+python scripts/dev.py check     # rehearse the full demo flow (21 checks)
 ```
 
 Open <http://localhost:5173>. Demo logins (local only): `admin@example.com / Admin@12345`, `student@example.com / Student@12345`, `recruiter@example.com / Recruiter@12345`.

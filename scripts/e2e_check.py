@@ -119,6 +119,8 @@ def main() -> int:
         return finish()
     code, mine = h.json("GET", "/api/blockchain/credentials/mine", token=student)
     check(code == 200 and any(c["credential_id"] == cid for c in mine), "student sees it under My credentials")
+    code, res = h.call("POST", f"/api/blockchain/credentials/{cid}/verify")
+    check(res.get("status") == "VERIFIED", "public verify by ID only (the QR-code link) -> VERIFIED", str(res))
     code, res = h.form("POST", f"/api/blockchain/credentials/{cid}/verify", files={"file": ("cert.pdf", doc)})
     check(res.get("status") == "VERIFIED", "public verify with the original file -> VERIFIED", str(res))
     code, res = h.form("POST", f"/api/blockchain/credentials/{cid}/verify", files={"file": ("cert.pdf", doc + b" TAMPERED")})

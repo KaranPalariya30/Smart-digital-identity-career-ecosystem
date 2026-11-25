@@ -224,7 +224,7 @@ function Forgot() {
 function ServiceStatus() {
   const [st, setSt] = useState({ auth: null, chain: null, resume: null })
   const check = () => { setSt({ auth: null, chain: null, resume: null }); api.health('/svc/auth/').then(v => setSt(p => ({ ...p, auth: v }))); api.health('/svc/chain/health').then(v => setSt(p => ({ ...p, chain: v }))); api.health('/svc/resume/health').then(v => setSt(p => ({ ...p, resume: v }))) }
-  useEffect(check, [])
+  useEffect(() => { check() }, [])
   const dot = v => v === null ? 'wait' : v ? 'up' : 'down'
   return (
     <div className="status">
@@ -275,7 +275,7 @@ function Dashboard() {
 /* ---------- app ---------- */
 export default function App() {
   const loc = useLocation()
-  useEffect(() => window.scrollTo(0, 0), [loc.pathname])
+  useEffect(() => { window.scrollTo(0, 0) }, [loc.pathname])
   return (
     <AuthProvider>
       <Nav />
