@@ -72,11 +72,13 @@ export function VerifyPage() {
                 {res.issuer && <><dt>Issuer</dt><dd className="mono">{res.issuer}</dd></>}
                 {meta?.contract_address && <><dt>Contract</dt><dd className="mono">{meta.contract_address}</dd></>}
                 {meta?.blockchain_tx_hash && <><dt>Transaction</dt><dd className="mono">{meta.blockchain_tx_hash}</dd></>}
+                {meta?.skills?.length > 0 && <><dt>Verifies skills</dt><dd>{meta.skills.join(', ')}</dd></>}
               </dl>
               {compared && (
                 <div className="cmp">
                   <div className="lbl">Your file’s fingerprint</div>
                   <Hash value={used} mark={res.status === 'INVALID' ? 'bad' : 'ok'} />
+                  {meta?.document_hash && (<><div className="lbl" style={{ marginTop: 12 }}>Fingerprint recorded at issue time</div><Hash value={meta.document_hash} mark="ok" /></>)}
                   <p>{res.status === 'INVALID' ? 'This fingerprint is not the one sealed on the blockchain. The file was changed, or it is a different document.' : 'This fingerprint matches the one sealed on the blockchain.'}</p>
                 </div>
               )}
@@ -89,27 +91,27 @@ export function VerifyPage() {
   )
 }
 
-/* Issuer console (ADMIN). register/revoke need the blockchain service token. */
-export function Issuer() {
-  const [svc, setSvc] = useState(() => sessionStorage.getItem('svc') || '')
-  const [f, setF] = useState({ userId: '', name: '', type: '' })
+/* Issuer console (ADMIN). Uses the logged-in user's token; the blockchain
+   service checks the role, so there is no separate service token to paste. */
+export function Issuer({ token }) {
+  const [f, setF] = useState({ userId: '', name: '', type: '', skills: '' })
   const [file, setFile] = useState(null), [hash, setHash] = useState('')
   const [res, setRes] = useState(null), [rid, setRid] = useState(''), [msg, setMsg] = useState(''), [sure, setSure] = useState(false)
   const [s, run] = useAsync(), [s2, run2] = useAsync()
 
   const issue = async e => {
-    e.preventDefault(); sessionStorage.setItem('svc', svc)
-    const r = await run(() => api.issue({ ...f, file }, svc))
+    e.preventDefault()
+    const r = await run(() => api.issue({ ...f, file }, token))
     if (r) setRes(r)
   }
   const revoke = async e => {
     e.preventDefault()
     if (!sure) { setSure(true); setTimeout(() => setSure(false), 4000); return }
     setSure(false); setMsg('')
-    const r = await run2(() => api.revoke(rid.trim(), svc))
+    const r = await run2(() => api.revoke(rid.trim(), token))
     if (r) setMsg(`Revoked. Transaction ${r.blockchain_tx_hash}`)
   }
-  const again = () => { setRes(null); setFile(null); setHash(''); setF({ ...f, name: '', type: '' }) }
+  const again = () => { setRes(null); setFile(null); setHash(''); setF({ ...f, name: '', type: '', skills: '' }) }
   const matches = res && sameHash(hash, res.document_hash)
   const flow = [
     ['Fingerprint in browser', file ? (hash ? 'done' : 'now') : 'todo'],
@@ -123,12 +125,10 @@ export function Issuer() {
         <p className="idsub">The service hashes the document and writes only the hash to the blockchain.</p>
         <Flow steps={flow} />
         <form onSubmit={issue}>
-          <Field label="Service token" type="password" required value={svc} onChange={e => setSvc(e.target.value)} />
-          <label>Student user ID (UUID)
-            <div className="inline"><input required value={f.userId} onChange={e => setF({ ...f, userId: e.target.value })} /><button type="button" className="mini" onClick={() => setF({ ...f, userId: crypto.randomUUID() })}>New</button></div>
-          </label>
+          <Field label="Student user ID (shown on the student’s Overview tab)" required inputMode="numeric" placeholder="e.g. 3" value={f.userId} onChange={e => setF({ ...f, userId: e.target.value })} />
           <Field label="Certificate name" required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
           <Field label="Type (optional)" value={f.type} onChange={e => setF({ ...f, type: e.target.value })} />
+          <Field label="Skills this verifies (optional, comma-separated)" placeholder="python, react, sql" value={f.skills} onChange={e => setF({ ...f, skills: e.target.value })} />
           <FilePick label="Document" required file={file} hash={hash} onChange={(x, h) => { setFile(x); setHash(h) }} />
           <Notice>{s.error}</Notice>
           <div className="actions"><button className="btn" disabled={s.busy || !hash}>{s.busy ? 'Sealing…' : 'Seal to blockchain'}</button></div>
@@ -146,6 +146,7 @@ export function Issuer() {
             <dl className="kv">
               <dt>ID</dt><dd className="mono">{res.credential_id}</dd>
               <dt>Link</dt><dd className="mono">{res.verification_url}</dd>
+              {res.skills?.length > 0 && <><dt>Skills</dt><dd>{res.skills.join(', ')}</dd></>}
               <dt>Browser</dt><dd><Hash value={hash} mark={matches ? 'ok' : 'bad'} /></dd>
               <dt>Server</dt><dd><Hash value={res.document_hash} mark={matches ? 'ok' : 'bad'} /></dd>
               <dt>Transaction</dt><dd className="mono">{res.blockchain_tx_hash}</dd>
@@ -167,6 +168,34 @@ export function Issuer() {
           </form>
         </div>
       </div>
+    </div>
+  )
+}
+
+/* A student's own credentials. Active ones feed the resume analysis as verified skills. */
+export function MyCredentials({ token, userId }) {
+  const [list, setList] = useState(null), [s, run] = useAsync()
+  useEffect(() => { run(() => api.myCredentials(token)).then(r => r && setList(r)) }, [token])
+  return (
+    <div className="box swap">
+      <h3>My credentials</h3>
+      <p className="idsub">Credentials sealed on the blockchain for your account (user ID {userId}). Active ones count as verified skills in your resume analysis.</p>
+      <Notice>{s.error}</Notice>
+      {list === null && !s.error && <p className="idsub" style={{ marginTop: 14 }}>Loading…</p>}
+      {list && list.length === 0 && <p className="lead" style={{ marginTop: 14 }}>No credentials yet. Give your institution your user ID ({userId}) and they can issue one.</p>}
+      {list && list.map(c => (
+        <div className="cred" key={c.credential_id}>
+          <div style={{ minWidth: 0 }}>
+            <strong>{c.certificate_name}</strong>{c.certificate_type ? <span className="idsub"> · {c.certificate_type}</span> : null}
+            <div className="mono idsub">{c.credential_id} · {new Date(c.issued_at).toLocaleDateString()}</div>
+            <div className="res-chips">{c.skills.map(k => <span className="chip" key={k}>{k}</span>)}</div>
+          </div>
+          <div className="cred-side">
+            <span className={`chip ${c.verification_status === 'active' ? 'ok' : 'miss'}`}>{c.verification_status}</span>
+            <Link className="mini" to={`/verify/${c.credential_id}`}>Verify</Link>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

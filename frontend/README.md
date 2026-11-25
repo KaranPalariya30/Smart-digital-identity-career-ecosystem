@@ -13,20 +13,17 @@ npm run dev      # http://localhost:5173
 
 | Screen | Method and path | Service |
 |---|---|---|
-| Register | `POST /api/auth/register` | auth |
-| Verify email | `POST /api/auth/verify-email` | auth |
-| Log in | `POST /api/auth/login` | auth |
+| Register / verify email / log in | `POST /api/auth/register`, `/verify-email`, `/login` | auth |
 | Session | `GET /api/auth/me` (Bearer JWT) | auth |
-| Access check | `GET /api/auth/{student,recruiter,admin}-only` | auth |
-| Forgot / reset password | `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` | auth |
-| Issue credential | `POST /api/blockchain/credentials?user_id&certificate_name&certificate_type` (multipart `file`, service Bearer token) | blockchain |
-| Credential details | `GET /api/blockchain/credentials/{id}` | blockchain |
-| Verify | `POST /api/blockchain/credentials/{id}/verify` (optional multipart `file`) | blockchain |
-| Revoke | `POST /api/blockchain/credentials/{id}/revoke` (service Bearer token) | blockchain |
-| Status panel | `GET /` (auth), `GET /health` (blockchain) | both |
-| Resume analysis | `POST /api/resume/analyze` | not built yet |
+| Forgot / reset password | `POST /api/auth/forgot-password`, `/reset-password` | auth |
+| Issue credential (ADMIN) | `POST /api/blockchain/credentials?user_id&certificate_name&certificate_type&skills` (multipart `file`, user JWT) | blockchain |
+| My credentials (any user) | `GET /api/blockchain/credentials/mine` (user JWT) | blockchain |
+| Credential details / verify | `GET /api/blockchain/credentials/{id}`, `POST .../{id}/verify` (public) | blockchain |
+| Revoke (ADMIN) | `POST /api/blockchain/credentials/{id}/revoke` (user JWT) | blockchain |
+| Resume analysis | `GET /api/resume/roles`, `POST /api/resume/analyze` (user JWT) | resume |
+| Status panel | `GET /` (auth), `GET /health` (blockchain, resume) | all |
 
-`vite.config.js` proxies these to `localhost:8000` (auth), `8001` (blockchain) and `8002` (resume), so no CORS setup is needed in dev. Change the ports if yours differ.
+`vite.config.js` proxies these to `localhost:8000` (auth), `8001` (blockchain) and `8002` (resume), so no CORS setup is needed in dev. `/api/resume/*` is rewritten to the resume service's versioned `/api/v1/*`. In production, put the same rules in your reverse proxy.
 
 ## SHA-256 in the UI
 
@@ -40,19 +37,14 @@ Hashing needs a secure context: `https://` or `localhost`.
 
 ## Trying the issuer console
 
-Registration only creates STUDENT users, so promote one for testing:
+`python scripts/dev.py start` (repo root) creates demo accounts, including `admin@example.com`. Log in as the admin, open **Issuer console**, enter the student's user ID (shown on the student's Overview tab), attach a document, and seal it. No separate token is needed: the blockchain service checks the logged-in user's role.
 
-```sql
-UPDATE users SET role = 'ADMIN' WHERE email = 'you@example.com';
-```
+## Verified skills
 
-Then log in, open **Issuer console**, and enter the `SERVICE_API_TOKEN` from blockchain-service's `.env`.
+When issuing, list the skills the credential proves (`python, react`). The student's **Resume** tab collects the skills from their *active* credentials and sends them to the resume service as `verified_skills`, so the analysis shows how much of the match is backed by the blockchain. Revoking a credential removes its skills from that list.
 
-## Backend notes
+## Notes
 
-1. Register and revoke need the service token, not a user JWT. The console keeps it in `sessionStorage` for development. In production, route these through your backend.
-2. `credentials.user_id` is a UUID, but auth users have integer IDs. They need aligning before credentials can belong to accounts. The console has a "New" button that generates a UUID for testing.
-3. `GET /credentials/{id}` returns the contract address in its `issuer` field, so the UI labels it "Contract". It also doesn't return `document_hash`. Adding it would let `/verify/:id` show the recorded fingerprint next to the one from the user's file.
-4. Neither service sets CORS headers. Add `CORSMiddleware` before hosting the frontend on another origin.
-5. Set `FRONTEND_VERIFY_BASE_URL=http://localhost:5173/verify` so QR codes open `/verify/:id`.
-6. Resume analysis has no HTTP endpoint yet. The screen shows a clear message until `POST /api/resume/analyze` exists.
+1. Hashing needs a secure context (`https://` or `localhost`).
+2. The dev proxy hides the fact that the services are on different ports. For a hosted demo, serve `frontend/dist` and add the same proxy rules, or set `CORS_ORIGINS` on each service.
+3. `GET /credentials/{id}` returns the contract address in its `issuer` field, so the UI labels it "Contract". The on-chain issuer address comes back from `/verify`.

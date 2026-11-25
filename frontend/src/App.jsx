@@ -3,7 +3,8 @@ import { Routes, Route, Link, NavLink, Navigate, useParams, useNavigate, useLoca
 import { api } from './api'
 import { BRANCHES } from './branches'
 import { useAsync, Notice, Field } from './ui'
-import { VerifyPage, Issuer } from './credentials'
+import { VerifyPage, Issuer, MyCredentials } from './credentials'
+import { Resume } from './resume'
 import { HashDemo } from './hashui'
 
 /* ---------- auth state ---------- */
@@ -221,8 +222,8 @@ function Forgot() {
 
 /* ---------- dashboard ---------- */
 function ServiceStatus() {
-  const [st, setSt] = useState({ auth: null, chain: null })
-  const check = () => { setSt({ auth: null, chain: null }); api.health('/svc/auth/').then(v => setSt(p => ({ ...p, auth: v }))); api.health('/svc/chain/health').then(v => setSt(p => ({ ...p, chain: v }))) }
+  const [st, setSt] = useState({ auth: null, chain: null, resume: null })
+  const check = () => { setSt({ auth: null, chain: null, resume: null }); api.health('/svc/auth/').then(v => setSt(p => ({ ...p, auth: v }))); api.health('/svc/chain/health').then(v => setSt(p => ({ ...p, chain: v }))); api.health('/svc/resume/health').then(v => setSt(p => ({ ...p, resume: v }))) }
   useEffect(check, [])
   const dot = v => v === null ? 'wait' : v ? 'up' : 'down'
   return (
@@ -231,6 +232,7 @@ function ServiceStatus() {
       <div className="actions">
         <span className="chip"><i className={`dot ${dot(st.auth)}`} />Auth service</span>
         <span className="chip"><i className={`dot ${dot(st.chain)}`} />Blockchain service</span>
+        <span className="chip"><i className={`dot ${dot(st.resume)}`} />Resume service</span>
         <button className="mini" onClick={check}>Recheck</button>
       </div>
     </div>
@@ -244,7 +246,7 @@ function Overview() {
     <div className="box swap">
       <h3>Hello, {user.name}</h3>
       <p className="idsub">{user.email}</p>
-      <div className="roles"><span className="chip">{user.role}</span></div>
+      <div className="roles"><span className="chip">{user.role}</span><span className="chip">User ID {user.id}</span></div>
       <p style={{ margin: '18px 0' }} className="lead">{user.role === 'STUDENT' ? 'Explore career paths for your branch, analyze your resume, or verify a credential.' : user.role === 'RECRUITER' ? 'Verify candidate credentials in seconds.' : 'Issue and revoke credentials from the issuer console.'}</p>
       <button className="btn ghost" onClick={check} disabled={s.busy}>Check my access</button>
       <Notice>{s.error}</Notice><Notice kind="ok">{msg}</Notice>
@@ -253,36 +255,19 @@ function Overview() {
   )
 }
 
-function Resume() {
-  const [file, setFile] = useState(null); const [text, setText] = useState(''); const [out, setOut] = useState(null); const [s, run] = useAsync()
-  const submit = async e => { e.preventDefault(); const r = await run(() => api.analyzeResume(file, text)); if (r) setOut(r) }
-  return (
-    <div className="box swap">
-      <h3>Resume analysis</h3>
-      <p className="idsub">Upload a text-based PDF or paste your resume. Skills and entities are extracted by the ML service.</p>
-      <form onSubmit={submit} style={{ marginTop: 16 }}>
-        <label>PDF resume<input type="file" accept="application/pdf" onChange={e => setFile(e.target.files[0])} /></label>
-        <label>Or paste text<textarea rows={5} value={text} onChange={e => setText(e.target.value)} /></label>
-        <Notice>{s.error && `${s.error}. The resume analysis API isn’t exposed yet (feature/resume-analysis only has the Python modules).`}</Notice>
-        <button className="btn" disabled={s.busy || (!file && !text.trim())}>{s.busy ? 'Analyzing…' : 'Analyze resume'}</button>
-      </form>
-      {out && <pre className="mono out">{JSON.stringify(out, null, 2)}</pre>}
-    </div>
-  )
-}
-
 function Dashboard() {
-  const { user } = useAuth(); const [tab, setTab] = useState('overview')
+  const { user, token } = useAuth(); const [tab, setTab] = useState('overview')
   if (!user) return null
-  const tabs = [['overview', 'Overview'], ...(user.role === 'STUDENT' ? [['paths', 'Career paths'], ['resume', 'Resume']] : []), ...(user.role === 'ADMIN' ? [['issuer', 'Issuer console']] : [])]
+  const tabs = [['overview', 'Overview'], ...(user.role === 'STUDENT' ? [['paths', 'Career paths'], ['credentials', 'My credentials'], ['resume', 'Resume']] : []), ...(user.role === 'ADMIN' ? [['issuer', 'Issuer console']] : [])]
   return (
     <div className="wrap" style={{ padding: '44px 22px 80px' }}>
       <h1 className="auth-h" style={{ marginBottom: 22 }}>Your dashboard</h1>
       <div className="tabs">{tabs.map(([k, l]) => <button key={k} className="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>)}<Link className="tab" to="/verify">Verify a credential</Link></div>
       {tab === 'overview' && <Overview />}
       {tab === 'paths' && <BranchExplorer />}
-      {tab === 'resume' && <Resume />}
-      {tab === 'issuer' && <Issuer />}
+      {tab === 'credentials' && <MyCredentials token={token} userId={user.id} />}
+      {tab === 'resume' && <Resume token={token} />}
+      {tab === 'issuer' && <Issuer token={token} />}
     </div>
   )
 }

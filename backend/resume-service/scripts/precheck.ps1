@@ -1,4 +1,4 @@
-# Run before every push:   .\scripts\precheck.ps1      (from the ai-resume-service folder, venv active)
+# Run before every push:   .\scripts\precheck.ps1      (from the backend/resume-service folder, venv active)
 # Tests -> smoke test (if the server is running) -> git hygiene. Never pushes anything itself.
 
 $failed = $false
